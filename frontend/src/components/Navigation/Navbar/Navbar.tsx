@@ -6,16 +6,75 @@ import { selectAvatar, selectName } from '@/features/onboardingSelectors';
 import { clearSearch } from '@/features/searchSlice';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { FaceSearchDialog } from '@/components/Dialog/FaceSearchDialog';
+import { useState } from 'react';
+import { selectImages } from '@/features/imageSelectors';
+import { setImages } from '@/features/imageSlice';
+import { fetchAllImages } from '@/api/api-functions/images';
+import { Image } from '@/types/Media';
+import { useEffect } from 'react';
 
 export function Navbar() {
+  const [searchInput, setSearchInput] = useState('');
+
   const userName = useSelector(selectName);
   const userAvatar = useSelector(selectAvatar);
+  const allImages = useSelector(selectImages);
+  const [masterImages, setMasterImages] = useState<Image[]>([]);
 
   const searchState = useSelector((state: any) => state.search);
   const isSearchActive = searchState.active;
   const queryImage = searchState.queryImage;
 
   const dispatch = useDispatch();
+
+  const handleSearch = () => {
+    const query = searchInput.toLowerCase().trim();
+
+    if (!query) {
+      // If search is empty, restore master images fetched earlier
+      dispatch(setImages(masterImages));
+      return;
+    }
+
+    // Filter images by tag name or image name using master list
+    const filteredImages = masterImages.filter((image) => {
+      const imageName = image.metadata?.name?.toLowerCase() || '';
+      const tags = image.tags?.map((tag) => tag.toLowerCase()) || [];
+      console.log('metadata', image);
+      console.log('metadata check', imageName);
+      return (
+        imageName.includes(query) || tags.some((tag) => tag.includes(query))
+      );
+    });
+
+    dispatch(setImages(filteredImages));
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetchAllImages();
+        const imgs = (res?.data || []) as Image[];
+        if (mounted) setMasterImages(imgs);
+      } catch (e) {
+        console.warn('Failed to fetch master images for search', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
   return (
     <div className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b pr-4 backdrop-blur">
       {/* Logo */}
@@ -59,6 +118,9 @@ export function Navbar() {
             type="search"
             placeholder="Add to your search"
             className="mr-2 flex-1 border-0 bg-neutral-200"
+            value={searchInput}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
           />
 
           {/* FaceSearch Dialog */}
@@ -66,6 +128,7 @@ export function Navbar() {
           <FaceSearchDialog />
 
           <button
+            onClick={handleSearch}
             className="text-muted-foreground hover:bg-accent dark:hover:bg-accent/50 hover:text-foreground mx-1 cursor-pointer rounded-sm p-2"
             title="Search"
             aria-label="Search"
