@@ -7,7 +7,6 @@ import { clearSearch } from '@/features/searchSlice';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { FaceSearchDialog } from '@/components/Dialog/FaceSearchDialog';
 import { useState } from 'react';
-import { selectImages } from '@/features/imageSelectors';
 import { setImages } from '@/features/imageSlice';
 import { fetchAllImages } from '@/api/api-functions/images';
 import { Image } from '@/types/Media';
@@ -18,7 +17,6 @@ export function Navbar() {
 
   const userName = useSelector(selectName);
   const userAvatar = useSelector(selectAvatar);
-  const allImages = useSelector(selectImages);
   const [masterImages, setMasterImages] = useState<Image[]>([]);
 
   const searchState = useSelector((state: any) => state.search);
@@ -40,8 +38,6 @@ export function Navbar() {
     const filteredImages = masterImages.filter((image) => {
       const imageName = image.metadata?.name?.toLowerCase() || '';
       const tags = image.tags?.map((tag) => tag.toLowerCase()) || [];
-      console.log('metadata', image);
-      console.log('metadata check', imageName);
       return (
         imageName.includes(query) || tags.some((tag) => tag.includes(query))
       );
